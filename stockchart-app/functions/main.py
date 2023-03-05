@@ -41,9 +41,4 @@ def stock_chart():
     return Response(chart_bytes, content_type=content_type)
 
 if __name__ == '__main__':
-    app.run(debug=True)
-
-
-
-
-
+    app.run(host='0.0.0.0')
