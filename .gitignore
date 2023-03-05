@@ -1,0 +1,27 @@
+# Python
+*.pyc
+__pycache__/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb
+
+# Text editor / IDE
+.vscode/
+.idea/
+
+# Compiled files
+*.class
+*.jar
+*.war
+*.ear
+
+# OS generated files
+.DS_Store
+Thumbs.db
