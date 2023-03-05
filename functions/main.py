@@ -1,70 +1,37 @@
-const functions = require("firebase-functions");
-const admin = require("firebase-admin");
-const express = require("express");
-const yf = require("yfinance");
-const { CanvasRenderService } = require("chartjs-node-canvas");
+from flask import Flask, request, Response
+import firebase_admin
+from firebase_admin import credentials, firestore
+import yfinance as yf
+import matplotlib.pyplot as plt
+import io
 
-admin.initializeApp();
+app = Flask(__name__)
 
-const app = express();
+cred = credentials.Certificate("path/to/serviceAccountKey.json")
+firebase_admin.initialize_app(cred)
+db = firestore.client()
 
-const getStockChart = async (ticker) => {
-  const chartSize = 500;
+def get_stock_chart(ticker):
+    stock_data = yf.download(ticker, start="2018-01-01", end="2023-03-05")
 
-  const canvasRenderService = new CanvasRenderService(chartSize, chartSize);
-  const config = {
-    type: "line",
-    data: {
-      labels: [],
-      datasets: [
-        {
-          label: `${ticker} Stock Chart`,
-          fill: false,
-          borderColor: "rgb(75, 192, 192)",
-          lineTension: 0.1,
-          data: [],
-        },
-      ],
-    },
-    options: {
-      scales: {
-        xAxes: [
-          {
-            type: "time",
-            time: {
-              displayFormats: {
-                month: "MMM YYYY",
-              },
-            },
-          },
-        ],
-      },
-    },
-  };
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(stock_data["Close"])
+    ax.set_title(f"{ticker} Stock Chart")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Close Price")
 
-  const data = await yf.download(ticker, {
-    period: "5y",
-  });
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png')
+    buffer.seek(0)
 
-  data.forEach((row) => {
-    config.data.labels.push(row.Date.toISOString());
-    config.data.datasets[0].data.push(row.Close);
-  });
+    # Return image bytes with 'image/png' Content-Type header
+    return buffer.getvalue(), 'image/png'
 
-  const chart = await canvasRenderService.renderToBuffer(config);
-  return chart;
-};
+@app.route('/stock-chart', methods=['GET'])
+def stock_chart():
+    ticker = request.args.get('ticker')
+    chart_bytes, content_type = get_stock_chart(ticker)
+    return Response(chart_bytes, content_type=content_type)
 
-app.get("/stock-chart", async (req, res) => {
-  try {
-    const ticker = req.query.ticker;
-    const chart = await getStockChart(ticker);
-    res.set("Content-Type", "image/png");
-    res.send(chart);
-  } catch (error) {
-    console.error(error);
-    res.status(500).send(error.message);
-  }
-});
-
-exports.app = functions.https.onRequest(app);
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
